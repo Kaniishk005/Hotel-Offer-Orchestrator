@@ -30,6 +30,16 @@ const requireCity = (request: Request, response: Response): string | undefined =
   return request.query.city.trim();
 };
 
+const optionalCity = (request: Request, response: Response): string | null | undefined => {
+  const value = request.query.city;
+  if (value === undefined) return null;
+  if (typeof value !== 'string' || value.trim() === '') {
+    response.status(400).json({ error: 'Query parameter "city" must be a non-empty string' });
+    return undefined;
+  }
+  return value.trim();
+};
+
 const parsePrice = (
   value: unknown,
   name: 'minPrice' | 'maxPrice',
@@ -88,13 +98,17 @@ export const createApp = (overrides: Partial<AppDependencies> = {}) => {
   });
 
   app.get('/supplierA/hotels', (request, response) => {
-    const city = requireCity(request, response);
-    if (city !== undefined) response.json(filterHotelsByCity(supplierAHotels, city));
+    const city = optionalCity(request, response);
+    if (city !== undefined) {
+      response.json(city === null ? supplierAHotels : filterHotelsByCity(supplierAHotels, city));
+    }
   });
 
   app.get('/supplierB/hotels', (request, response) => {
-    const city = requireCity(request, response);
-    if (city !== undefined) response.json(filterHotelsByCity(supplierBHotels, city));
+    const city = optionalCity(request, response);
+    if (city !== undefined) {
+      response.json(city === null ? supplierBHotels : filterHotelsByCity(supplierBHotels, city));
+    }
   });
 
   app.get('/api/hotels', async (request, response, next) => {

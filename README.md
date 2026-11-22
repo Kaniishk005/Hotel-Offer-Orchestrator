@@ -129,6 +129,8 @@ The checked-in `.env.example` contains host addresses. `.env` is ignored and is 
 | Endpoint | Description |
 |---|---|
 | `GET /health` | Liveness response |
+| `GET /supplierA/hotels` | All Supplier A mock data |
+| `GET /supplierB/hotels` | All Supplier B mock data |
 | `GET /supplierA/hotels?city=delhi` | Supplier A mock data |
 | `GET /supplierB/hotels?city=delhi` | Supplier B mock data |
 | `GET /api/hotels?city=delhi` | Deduplicated offers |
@@ -156,6 +158,8 @@ Example response:
 ```
 
 An unknown city returns `[]`.
+
+The supplier endpoints accept an optional `city` filter. Omitting it returns the supplier's complete deterministic dataset. The orchestration endpoint always requires `city`.
 
 ## Testing
 
