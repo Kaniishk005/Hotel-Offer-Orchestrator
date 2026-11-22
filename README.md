@@ -175,6 +175,30 @@ The real-Redis suite uses `REDIS_URL` and must run while Redis is available. Imp
 
 ## Temporal UI
 
+`GET /health` returns HTTP 200 with `{"status":"ok","suppliers":{"supplierA":"healthy","supplierB":"healthy"}}` in normal operation. An unavailable mock changes its individual status to `unhealthy` and the overall status to `degraded`. Health uses the same in-process availability state as the supplier routes.
+
+Workflow and activity logs use the Temporal SDK and include scheduling, supplier fetch outcomes, hotel counts, and failure classifications. Inspect them with `docker compose logs worker`.
+
+### Optional Supplier B failure check
+
+Run this separately from the healthy Newman collection:
+
+```powershell
+$env:MOCK_SUPPLIER_B_DOWN = 'true'
+try {
+  docker compose up -d --no-deps api
+  curl.exe -i http://localhost:3000/health
+  curl.exe -i http://localhost:3000/supplierB/hotels
+  curl.exe -i "http://localhost:3000/api/hotels?city=delhi"
+} finally {
+  $env:MOCK_SUPPLIER_B_DOWN = 'false'
+  docker compose up -d --no-deps api
+  Remove-Item Env:MOCK_SUPPLIER_B_DOWN
+}
+```
+
+Expect degraded health with HTTP 200, Supplier B with HTTP 503, and the aggregate request with HTTP 502 after three Supplier B attempts. Supplier A remains available. The default is `false`.
+
 Open `http://localhost:8080`, select the `default` namespace, and inspect `hotelOrchestrationWorkflow` executions. Each API request uses a unique `hotel-offers-<UUID>` workflow ID.
 
 ## Project structure

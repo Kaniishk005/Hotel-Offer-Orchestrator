@@ -12,6 +12,17 @@ const run = async (): Promise<void> => {
     taskQueue: config.temporalTaskQueue,
     workflowsPath: fileURLToPath(new URL(`./workflows.${workflowExtension}`, import.meta.url)),
     activities,
+    interceptors: {
+      activity: [() => ({
+        outbound: {
+          getLogAttributes(input, next) {
+            const attributes = { ...next(input) };
+            delete attributes.taskToken;
+            return attributes;
+          },
+        },
+      })],
+    },
   });
 
   console.log(`Temporal worker listening on task queue "${config.temporalTaskQueue}"`);

@@ -69,6 +69,7 @@ services:
     restart: unless-stopped
     environment:
       PORT: 3000
+      MOCK_SUPPLIER_B_DOWN: "${MOCK_SUPPLIER_B_DOWN:-false}"
       TEMPORAL_ADDRESS: temporal:7233
       TEMPORAL_NAMESPACE: default
       TEMPORAL_TASK_QUEUE: hotel-offers

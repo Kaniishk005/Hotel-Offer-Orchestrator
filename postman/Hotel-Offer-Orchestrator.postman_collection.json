@@ -21,7 +21,7 @@
           "if (expectedStatus === 400) {",
           "  pm.test('Safe validation error', () => pm.expect(body).to.have.property('error'));",
           "} else if (name === 'Health') {",
-          "  pm.test('Healthy response', () => pm.expect(body).to.eql({ status: 'ok' }));",
+          "  pm.test('Healthy response', () => pm.expect(body).to.eql({ status: 'ok', suppliers: { supplierA: 'healthy', supplierB: 'healthy' } }));",
           "} else {",
           "  pm.test('JSON array response', () => pm.expect(body).to.be.an('array'));",
           "}",

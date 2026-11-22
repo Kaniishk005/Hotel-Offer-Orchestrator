@@ -7,6 +7,8 @@ import {
 import { getHotelOffers } from './temporal/client.js';
 
 export interface AppDependencies {
+  supplierADown: boolean;
+  supplierBDown: boolean;
   getHotelOffers: typeof getHotelOffers;
   replaceAndFilterHotelOffers: typeof replaceAndFilterHotelOffers;
 }
@@ -85,6 +87,8 @@ const requirePriceRange = (request: Request, response: Response): PriceRange | u
 
 export const createApp = (overrides: Partial<AppDependencies> = {}) => {
   const dependencies: AppDependencies = {
+    supplierADown: false,
+    supplierBDown: process.env.MOCK_SUPPLIER_B_DOWN === 'true',
     getHotelOffers,
     replaceAndFilterHotelOffers,
     ...overrides,
@@ -94,10 +98,21 @@ export const createApp = (overrides: Partial<AppDependencies> = {}) => {
   app.use(express.json());
 
   app.get('/health', (_request, response) => {
-    response.json({ status: 'ok' });
+    const { supplierADown, supplierBDown } = dependencies;
+    response.json({
+      status: supplierADown || supplierBDown ? 'degraded' : 'ok',
+      suppliers: {
+        supplierA: supplierADown ? 'unhealthy' : 'healthy',
+        supplierB: supplierBDown ? 'unhealthy' : 'healthy',
+      },
+    });
   });
 
   app.get('/supplierA/hotels', (request, response) => {
+    if (dependencies.supplierADown) {
+      response.status(503).json({ error: 'Supplier A unavailable' });
+      return;
+    }
     const city = optionalCity(request, response);
     if (city !== undefined) {
       response.json(city === null ? supplierAHotels : filterHotelsByCity(supplierAHotels, city));
@@ -105,6 +120,10 @@ export const createApp = (overrides: Partial<AppDependencies> = {}) => {
   });
 
   app.get('/supplierB/hotels', (request, response) => {
+    if (dependencies.supplierBDown) {
+      response.status(503).json({ error: 'Supplier B unavailable' });
+      return;
+    }
     const city = optionalCity(request, response);
     if (city !== undefined) {
       response.json(city === null ? supplierBHotels : filterHotelsByCity(supplierBHotels, city));

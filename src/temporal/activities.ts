@@ -1,4 +1,4 @@
-import { ApplicationFailure } from '@temporalio/activity';
+import { ApplicationFailure, log } from '@temporalio/activity';
 import { config } from '../config.js';
 import type { HotelOffer, SupplierHotel, SupplierName } from '../types/hotel.js';
 
@@ -9,11 +9,13 @@ const fetchSupplier = async (
 ): Promise<HotelOffer[]> => {
   const url = new URL(path, config.supplierApiBaseUrl);
   url.searchParams.set('city', city);
+  log.info('Supplier fetch started', { supplier, city });
 
   let response: Response;
   try {
     response = await fetch(url, { signal: AbortSignal.timeout(5_000) });
   } catch (error) {
+    log.warn('Supplier network failure', { supplier, city, failureType: 'SupplierNetworkError' });
     throw ApplicationFailure.retryable(
       `Could not reach ${supplier}`,
       'SupplierNetworkError',
@@ -22,6 +24,7 @@ const fetchSupplier = async (
   }
 
   if (!response.ok) {
+    log.warn('Supplier HTTP failure', { supplier, city, status: response.status });
     const message = `${supplier} returned HTTP ${response.status}`;
     if (response.status >= 500 || response.status === 429) {
       throw ApplicationFailure.retryable(message, 'SupplierHttpError');
@@ -30,7 +33,9 @@ const fetchSupplier = async (
   }
 
   const hotels = (await response.json()) as SupplierHotel[];
-  return hotels.map((hotel) => ({ ...hotel, supplier }));
+  const offers = hotels.map((hotel) => ({ ...hotel, supplier }));
+  log.info('Supplier fetch succeeded', { supplier, city, hotelCount: offers.length });
+  return offers;
 };
 
 export const fetchSupplierAHotels = (city: string): Promise<HotelOffer[]> =>
