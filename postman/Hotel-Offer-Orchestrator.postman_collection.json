@@ -1,0 +1,57 @@
+{
+  "info": {
+    "_postman_id": "735588d1-5038-4dfb-9f52-6e84f23c55df",
+    "name": "Hotel Offer Orchestrator",
+    "description": "Health, supplier, orchestration, Redis price-filtering, and validation requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const name = pm.info.requestName;",
+          "const expectedStatus = ['Invalid Price Range', 'Missing City'].includes(name) ? 400 : 200;",
+          "pm.test(`HTTP ${expectedStatus}`, () => pm.response.to.have.status(expectedStatus));",
+          "const body = pm.response.json();",
+          "if (expectedStatus === 400) {",
+          "  pm.test('Safe validation error', () => pm.expect(body).to.have.property('error'));",
+          "} else if (name === 'Health') {",
+          "  pm.test('Healthy response', () => pm.expect(body).to.eql({ status: 'ok' }));",
+          "} else {",
+          "  pm.test('JSON array response', () => pm.expect(body).to.be.an('array'));",
+          "}",
+          "if (name.startsWith('Supplier')) {",
+          "  pm.test('Supplier hotel shape', () => body.forEach(h => { pm.expect(h).to.have.all.keys('hotelId', 'name', 'price', 'city', 'commissionPct'); pm.expect(h.price).to.be.a('number'); }));",
+          "}",
+          "if (name.startsWith('Hotels') && expectedStatus === 200) {",
+          "  pm.test('Offer response shape', () => body.forEach(h => { pm.expect(h).to.have.all.keys('name', 'price', 'supplier', 'commissionPct'); pm.expect(h.price).to.be.a('number'); }));",
+          "  pm.test('No normalized duplicate names', () => { const names = body.map(h => h.name.trim().toLowerCase()); pm.expect(new Set(names).size).to.eql(names.length); });",
+          "  pm.test('Ascending price order', () => { for (let i = 1; i < body.length; i++) pm.expect(body[i].price).to.be.at.least(body[i - 1].price); });",
+          "}",
+          "if (name === 'Hotels - Unknown City') pm.test('Unknown city is empty', () => pm.expect(body).to.eql([]));",
+          "if (name === 'Hotels - Minimum Price') pm.test('Inclusive minimum', () => { body.forEach(h => pm.expect(h.price).to.be.at.least(5900)); pm.expect(body.some(h => h.price === 5900)).to.be.true; });",
+          "if (name === 'Hotels - Maximum Price') pm.test('Inclusive maximum', () => { body.forEach(h => pm.expect(h.price).to.be.at.most(5900)); pm.expect(body.some(h => h.price === 5900)).to.be.true; });",
+          "if (name === 'Hotels - Inclusive Price Range') pm.test('Both boundaries included', () => { body.forEach(h => pm.expect(h.price).to.be.within(5340, 5900)); pm.expect(body.some(h => h.price === 5340)).to.be.true; pm.expect(body.some(h => h.price === 5900)).to.be.true; });"
+        ]
+      }
+    }
+  ],
+  "item": [
+    { "name": "Health", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/health" } },
+    { "name": "Supplier A - Delhi", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/supplierA/hotels?city=delhi" } },
+    { "name": "Supplier B - Delhi", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/supplierB/hotels?city=delhi" } },
+    { "name": "Hotels - Delhi", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/hotels?city=delhi" } },
+    { "name": "Hotels - Mumbai", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/hotels?city=mumbai" } },
+    { "name": "Hotels - Unknown City", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/hotels?city=pune" } },
+    { "name": "Hotels - Minimum Price", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/hotels?city=delhi&minPrice=5900" } },
+    { "name": "Hotels - Maximum Price", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/hotels?city=delhi&maxPrice=5900" } },
+    { "name": "Hotels - Inclusive Price Range", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/hotels?city=delhi&minPrice=5340&maxPrice=5900" } },
+    { "name": "Invalid Price Range", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/hotels?city=delhi&minPrice=6000&maxPrice=5000" } },
+    { "name": "Missing City", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/hotels" } }
+  ]
+}
